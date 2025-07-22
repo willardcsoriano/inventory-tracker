@@ -2,6 +2,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabaseClient'
+import { useSession } from '@supabase/auth-helpers-react'
 import { useEffect, useState, FormEvent } from 'react'
 
 interface Item {
@@ -9,9 +10,13 @@ interface Item {
   name: string
   quantity: number
   created_at: string
+  user_id: string
 }
 
 export default function InventoryApp() {
+  const session = useSession()!
+  const userId = session.user.id
+
   const [items, setItems]               = useState<Item[]>([])
   const [name, setName]                 = useState('')
   const [quantity, setQuantity]         = useState(1)
@@ -20,11 +25,12 @@ export default function InventoryApp() {
   const [editName, setEditName]         = useState('')
   const [editQuantity, setEditQuantity] = useState(1)
 
-  // Fetch all items
+  // Fetch only this user's items
   const fetchItems = async () => {
     const { data, error } = await supabase
       .from('items')
       .select('*')
+      .eq('user_id', userId)
       .order('id', { ascending: false })
 
     if (error) {
@@ -38,14 +44,14 @@ export default function InventoryApp() {
     fetchItems()
   }, [])
 
-  // Create a new item
+  // Create a new item for this user
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     const { error } = await supabase
       .from('items')
-      .insert({ name, quantity })
+      .insert({ name, quantity, user_id: userId })
 
     setLoading(false)
     if (error) {
@@ -57,7 +63,7 @@ export default function InventoryApp() {
     }
   }
 
-  // Delete an item
+  // Delete an item (only allowed if user_id matches)
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this item?')) return
 
@@ -73,7 +79,7 @@ export default function InventoryApp() {
     }
   }
 
-  // Begin editing an item
+  // Begin editing
   const startEdit = (item: Item) => {
     setEditingId(item.id)
     setEditName(item.name)
@@ -87,7 +93,7 @@ export default function InventoryApp() {
     setEditQuantity(1)
   }
 
-  // Save updates
+  // Save updates to an item
   const handleUpdate = async (e: FormEvent) => {
     e.preventDefault()
     if (editingId == null) return
@@ -167,17 +173,10 @@ export default function InventoryApp() {
             />
           </div>
           <div className="flex space-x-2">
-            <button
-              type="submit"
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-            >
+            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
               Save
             </button>
-            <button
-              type="button"
-              onClick={cancelEdit}
-              className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
-            >
+            <button type="button" onClick={cancelEdit} className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">
               Cancel
             </button>
           </div>
@@ -187,25 +186,15 @@ export default function InventoryApp() {
       {/* Item List */}
       <ul className="space-y-3">
         {items.map(item => (
-          <li
-            key={item.id}
-            className="flex justify-between items-center p-4 bg-gray-100 rounded"
-          >
+          <li key={item.id} className="flex justify-between items-center p-4 bg-gray-100 rounded">
             <div>
-              <span className="font-medium">{item.name}</span> —{' '}
-              <span className="font-semibold">{item.quantity}</span>
+              <span className="font-medium">{item.name}</span> — <span className="font-semibold">{item.quantity}</span>
             </div>
             <div className="space-x-2">
-              <button
-                onClick={() => startEdit(item)}
-                className="text-sm px-2 py-1 border rounded hover:bg-gray-200"
-              >
+              <button onClick={() => startEdit(item)} className="text-sm px-2 py-1 border rounded hover:bg-gray-200">
                 Edit
               </button>
-              <button
-                onClick={() => handleDelete(item.id)}
-                className="text-sm px-2 py-1 border rounded text-red-600 hover:bg-red-100"
-              >
+              <button onClick={() => handleDelete(item.id)} className="text-sm px-2 py-1 border rounded text-red-600 hover:bg-red-100">
                 Delete
               </button>
             </div>
