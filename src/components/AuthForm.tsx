@@ -2,12 +2,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useSession } from '@supabase/auth-helpers-react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react'
 
 export default function AuthForm() {
-  // This client helper reads/writes the Supabase Auth cookie
-  const supabase = createClientComponentClient()
+  const supabase = useSupabaseClient()
   const session  = useSession()
 
   const [email, setEmail]       = useState('')
@@ -35,7 +33,7 @@ export default function AuthForm() {
     await supabase.auth.signOut()
   }
 
-  // If already signed in, show a Sign Out button
+  // If already signed in, show Sign Out
   if (session) {
     return (
       <div className="p-4 bg-green-100 rounded max-w-sm mx-auto my-8">
@@ -52,7 +50,7 @@ export default function AuthForm() {
     )
   }
 
-  // Otherwise show the sign-in / sign-up form
+  // Otherwise show the form
   return (
     <div className="p-4 bg-gray-100 rounded max-w-sm mx-auto my-8 space-y-4">
       <h2 className="text-xl font-semibold">Sign In / Sign Up</h2>
