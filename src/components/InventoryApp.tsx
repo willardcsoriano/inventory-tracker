@@ -18,6 +18,7 @@ export default function InventoryApp() {
   const user     = session?.user
 
   const [items, setItems]               = useState<Item[]>([])
+  const [filter, setFilter]             = useState('')       // ← search text
   const [name, setName]                 = useState('')
   const [quantity, setQuantity]         = useState(1)
   const [loading, setLoading]           = useState(false)
@@ -25,15 +26,14 @@ export default function InventoryApp() {
   const [editName, setEditName]         = useState('')
   const [editQuantity, setEditQuantity] = useState(1)
 
-  // Fetch items from our API
+  // Fetch items
   const fetchItems = async () => {
     const res = await fetch('/api/items')
     if (!res.ok) {
       console.error(await res.text())
       return
     }
-    const data: Item[] = await res.json()
-    setItems(data)
+    setItems(await res.json())
   }
 
   useEffect(() => {
@@ -50,13 +50,9 @@ export default function InventoryApp() {
       body: JSON.stringify({ name, quantity }),
     })
     setLoading(false)
-
-    if (!res.ok) {
-      alert(await res.text())
-    } else {
-      setName('')
-      setQuantity(1)
-      fetchItems()
+    if (!res.ok) alert(await res.text())
+    else {
+      setName(''); setQuantity(1); fetchItems()
     }
   }
 
@@ -64,11 +60,8 @@ export default function InventoryApp() {
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this item?')) return
     const res = await fetch(`/api/items?id=${id}`, { method: 'DELETE' })
-    if (!res.ok) {
-      alert(await res.text())
-    } else {
-      fetchItems()
-    }
+    if (!res.ok) alert(await res.text())
+    else fetchItems()
   }
 
   // Edit flows
@@ -79,39 +72,37 @@ export default function InventoryApp() {
   }
   const cancelEdit = () => {
     setEditingId(null)
-    setEditName('')
-    setEditQuantity(1)
+    setEditName(''); setEditQuantity(1)
   }
   const handleUpdate = async (e: FormEvent) => {
     e.preventDefault()
     if (editingId == null) return
-
     const res = await fetch('/api/items', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: editingId, name: editName, quantity: editQuantity }),
     })
-
-    if (!res.ok) {
-      alert(await res.text())
-    } else {
-      cancelEdit()
-      fetchItems()
+    if (!res.ok) alert(await res.text())
+    else {
+      cancelEdit(); fetchItems()
     }
   }
 
   // Sign out
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    // After sign-out, `session` will become null and this component will unmount
   }
 
-  // If not signed in, render nothing
   if (!user) return null
+
+  // Apply the search filter
+  const visibleItems = items.filter(i =>
+    i.name.toLowerCase().includes(filter.toLowerCase())
+  )
 
   return (
     <main className="p-8 max-w-xl mx-auto">
-      {/* Header with title and logout */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Inventory Tracker</h1>
         <button
@@ -120,6 +111,17 @@ export default function InventoryApp() {
         >
           Sign Out
         </button>
+      </div>
+
+      {/* Search Box */}
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search items…"
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          className="w-full border rounded px-3 py-2"
+        />
       </div>
 
       {/* Create Form */}
@@ -180,10 +182,7 @@ export default function InventoryApp() {
             />
           </div>
           <div className="flex space-x-2">
-            <button
-              type="submit"
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-            >
+            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
               Save
             </button>
             <button
@@ -199,7 +198,7 @@ export default function InventoryApp() {
 
       {/* Item List */}
       <ul className="space-y-3">
-        {items.map(item => (
+        {visibleItems.map(item => (
           <li
             key={item.id}
             className="flex justify-between items-center p-4 bg-gray-100 rounded"
