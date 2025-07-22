@@ -1,3 +1,5 @@
+'use client';
+
 import { supabase } from '@/lib/supabaseClient';
 import { useEffect, useState } from 'react';
 
@@ -12,12 +14,18 @@ export default function Home() {
 
   useEffect(() => {
     async function fetchItems() {
-      let { data, error } = await supabase
-        .from<Item>('items')
+      const { data, error } = await supabase
+        .from('items')         // no <Item> here
         .select('*');
-      if (error) console.error(error);
-      else setItems(data);
+
+      if (error) {
+        console.error(error);
+      } else {
+        // data can be null, so default to []
+        setItems(data ?? []);
+      }
     }
+
     fetchItems();
   }, []);
 
