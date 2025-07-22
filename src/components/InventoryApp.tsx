@@ -2,6 +2,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabaseClient'
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import { useSession } from '@supabase/auth-helpers-react'
 import { useEffect, useState, FormEvent } from 'react'
 
@@ -15,7 +16,7 @@ interface Item {
 
 export default function InventoryApp() {
   const session = useSession()!
-  const userId = session.user.id
+  const userId  = session.user.id
 
   const [items, setItems]               = useState<Item[]>([])
   const [name, setName]                 = useState('')
@@ -25,90 +26,103 @@ export default function InventoryApp() {
   const [editName, setEditName]         = useState('')
   const [editQuantity, setEditQuantity] = useState(1)
 
-  // Fetch only this user's items
+  // 1. Load this user's items
   const fetchItems = async () => {
     const { data, error } = await supabase
-      .from('items')
+      .from('items')               // no generic here
       .select('*')
       .eq('user_id', userId)
       .order('id', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching items:', error)
-    } else {
-      setItems(data ?? [])
-    }
+    if (error) console.error('Error fetching items:', error)
+    else setItems(data ?? [])
   }
 
   useEffect(() => {
+    // Initial fetch
     fetchItems()
-  }, [])
 
-  // Create a new item for this user
+    // Real-time subscription for this user's rows
+    const channel = supabase
+      .channel('items')  // arbitrary channel name
+      .on<RealtimePostgresChangesPayload<Item>>(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'items',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const row = (payload.new ?? payload.old)! as Item
+          setItems((curr) => {
+            switch (payload.eventType) {
+              case 'INSERT':
+                return [row, ...curr]
+              case 'UPDATE':
+                return curr.map(i => (i.id === row.id ? row : i))
+              case 'DELETE':
+                return curr.filter(i => i.id !== row.id)
+              default:
+                return curr
+            }
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId])
+
+  // 2. Create a new item
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     const { error } = await supabase
       .from('items')
       .insert({ name, quantity, user_id: userId })
-
     setLoading(false)
-    if (error) {
-      alert('Error adding item: ' + error.message)
-    } else {
+
+    if (error) alert('Error adding item: ' + error.message)
+    else {
       setName('')
       setQuantity(1)
-      fetchItems()
+      // no fetchItems() needed; subscription will update state
     }
   }
 
-  // Delete an item (only allowed if user_id matches)
+  // 3. Delete
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this item?')) return
-
     const { error } = await supabase
       .from('items')
       .delete()
       .eq('id', id)
-
-    if (error) {
-      alert('Error deleting item: ' + error.message)
-    } else {
-      fetchItems()
-    }
+    if (error) alert('Error deleting item: ' + error.message)
   }
 
-  // Begin editing
+  // 4. Edit flows
   const startEdit = (item: Item) => {
     setEditingId(item.id)
     setEditName(item.name)
     setEditQuantity(item.quantity)
   }
-
-  // Cancel edit mode
   const cancelEdit = () => {
     setEditingId(null)
     setEditName('')
     setEditQuantity(1)
   }
-
-  // Save updates to an item
   const handleUpdate = async (e: FormEvent) => {
     e.preventDefault()
     if (editingId == null) return
-
     const { error } = await supabase
       .from('items')
       .update({ name: editName, quantity: editQuantity })
       .eq('id', editingId)
-
-    if (error) {
-      alert('Error updating item: ' + error.message)
-    } else {
-      cancelEdit()
-      fetchItems()
-    }
+    if (error) alert('Error updating item: ' + error.message)
+    else cancelEdit()
   }
 
   return (
@@ -143,7 +157,7 @@ export default function InventoryApp() {
           disabled={loading}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? 'Adding...' : 'Add Item'}
+          {loading ? 'Adding…' : 'Add Item'}
         </button>
       </form>
 
@@ -176,7 +190,11 @@ export default function InventoryApp() {
             <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
               Save
             </button>
-            <button type="button" onClick={cancelEdit} className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
+            >
               Cancel
             </button>
           </div>
@@ -186,7 +204,10 @@ export default function InventoryApp() {
       {/* Item List */}
       <ul className="space-y-3">
         {items.map(item => (
-          <li key={item.id} className="flex justify-between items-center p-4 bg-gray-100 rounded">
+          <li
+            key={item.id}
+            className="flex justify-between items-center p-4 bg-gray-100 rounded"
+          >
             <div>
               <span className="font-medium">{item.name}</span> — <span className="font-semibold">{item.quantity}</span>
             </div>
