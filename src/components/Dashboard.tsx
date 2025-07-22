@@ -1,61 +1,62 @@
 // src/components/Dashboard.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, FC } from 'react'
 import Link from 'next/link'
 
 interface Stats {
   inventoryCount: number
-  ordersCount:    number
-  suppliesCount:  number
-  paymentsCount:  number
+  ordersCount: number
+  suppliesCount: number
+  paymentsCount: number
 }
+
+// Reusable card component for displaying stats
+const StatCard: FC<{ href: string; title: string; value: number }> = ({
+  href,
+  title,
+  value,
+}) => (
+  <Link
+    href={href}
+    className="p-6 bg-white rounded-lg shadow-md transition-shadow hover:shadow-lg"
+  >
+    <h2 className="text-xl font-semibold text-gray-700">{title}</h2>
+    <p className="mt-2 text-4xl font-bold text-gray-900">{value}</p>
+  </Link>
+)
 
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/dashboard/stats')
-      .then((res) => res.json())
-      .then((data) => setStats(data))
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch stats')
+        return res.json()
+      })
+      .then((data) => {
+        setStats(data)
+      })
       .catch(console.error)
+      .finally(() => setLoading(false))
   }, [])
 
-  if (!stats) return <p>Loading stats…</p>
+  if (loading) {
+    return <p className="text-center text-gray-500">Loading stats… 📊</p>
+  }
+
+  if (!stats) {
+    return <p className="text-center text-red-500">Could not load dashboard stats.</p>
+  }
 
   return (
-    <div className="grid grid-cols-2 gap-6">
-      <Link
-        href="/inventory"
-        className="p-6 bg-white rounded shadow hover:shadow-md"
-      >
-        <h2 className="text-xl font-semibold">Inventory</h2>
-        <p className="text-3xl">{stats.inventoryCount}</p>
-      </Link>
-
-      <Link
-        href="/orders"
-        className="p-6 bg-white rounded shadow hover:shadow-md"
-      >
-        <h2 className="text-xl font-semibold">Orders</h2>
-        <p className="text-3xl">{stats.ordersCount}</p>
-      </Link>
-
-      <Link
-        href="/supplies"
-        className="p-6 bg-white rounded shadow hover:shadow-md"
-      >
-        <h2 className="text-xl font-semibold">Supplies</h2>
-        <p className="text-3xl">{stats.suppliesCount}</p>
-      </Link>
-
-      <Link
-        href="/payments"
-        className="p-6 bg-white rounded shadow hover:shadow-md"
-      >
-        <h2 className="text-xl font-semibold">Payments</h2>
-        <p className="text-3xl">{stats.paymentsCount}</p>
-      </Link>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <StatCard href="/inventory" title="Inventory" value={stats.inventoryCount} />
+      <StatCard href="/orders" title="Orders" value={stats.ordersCount} />
+      <StatCard href="/supplies" title="Supplies" value={stats.suppliesCount} />
+      <StatCard href="/payments" title="Payments" value={stats.paymentsCount} />
     </div>
   )
 }
