@@ -1,7 +1,7 @@
 // src/components/InventoryApp.tsx
 'use client'
 
-import { useSession } from '@supabase/auth-helpers-react'
+import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react'
 import { useEffect, useState, FormEvent } from 'react'
 
 interface Item {
@@ -13,15 +13,16 @@ interface Item {
 }
 
 export default function InventoryApp() {
-  const session = useSession()
-  const user = session?.user
+  const supabase = useSupabaseClient()
+  const session  = useSession()
+  const user     = session?.user
 
-  const [items, setItems]         = useState<Item[]>([])
-  const [name, setName]           = useState('')
-  const [quantity, setQuantity]   = useState(1)
-  const [loading, setLoading]     = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [editName, setEditName]   = useState('')
+  const [items, setItems]               = useState<Item[]>([])
+  const [name, setName]                 = useState('')
+  const [quantity, setQuantity]         = useState(1)
+  const [loading, setLoading]           = useState(false)
+  const [editingId, setEditingId]       = useState<number | null>(null)
+  const [editName, setEditName]         = useState('')
   const [editQuantity, setEditQuantity] = useState(1)
 
   // Fetch items from our API
@@ -43,7 +44,6 @@ export default function InventoryApp() {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     const res = await fetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -100,12 +100,27 @@ export default function InventoryApp() {
     }
   }
 
-  // If not signed in, nothing to show
+  // Sign out
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    // After sign-out, `session` will become null and this component will unmount
+  }
+
+  // If not signed in, render nothing
   if (!user) return null
 
   return (
     <main className="p-8 max-w-xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Inventory Tracker</h1>
+      {/* Header with title and logout */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Inventory Tracker</h1>
+        <button
+          onClick={handleSignOut}
+          className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+        >
+          Sign Out
+        </button>
+      </div>
 
       {/* Create Form */}
       <form onSubmit={handleCreate} className="mb-8 space-y-4">
@@ -165,7 +180,10 @@ export default function InventoryApp() {
             />
           </div>
           <div className="flex space-x-2">
-            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            <button
+              type="submit"
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
               Save
             </button>
             <button
@@ -182,16 +200,25 @@ export default function InventoryApp() {
       {/* Item List */}
       <ul className="space-y-3">
         {items.map(item => (
-          <li key={item.id} className="flex justify-between items-center p-4 bg-gray-100 rounded">
+          <li
+            key={item.id}
+            className="flex justify-between items-center p-4 bg-gray-100 rounded"
+          >
             <div>
               <span className="font-medium">{item.name}</span> —{' '}
               <span className="font-semibold">{item.quantity}</span>
             </div>
             <div className="space-x-2">
-              <button onClick={() => startEdit(item)} className="text-sm px-2 py-1 border rounded hover:bg-gray-200">
+              <button
+                onClick={() => startEdit(item)}
+                className="text-sm px-2 py-1 border rounded hover:bg-gray-200"
+              >
                 Edit
               </button>
-              <button onClick={() => handleDelete(item.id)} className="text-sm px-2 py-1 border rounded text-red-600 hover:bg-red-100">
+              <button
+                onClick={() => handleDelete(item.id)}
+                className="text-sm px-2 py-1 border rounded text-red-600 hover:bg-red-100"
+              >
                 Delete
               </button>
             </div>
