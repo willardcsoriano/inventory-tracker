@@ -11,17 +11,15 @@ export default function Header() {
           📦 InventoryApp
         </Link>
         <div className="space-x-6">
-          <Link
-            href="/"
-            className="text-gray-300 hover:text-white transition-colors"
-          >
+          <Link href="/" className="text-gray-300 hover:text-white transition-colors">
             Dashboard
           </Link>
-          <Link
-            href="/inventory"
-            className="text-gray-300 hover:text-white transition-colors"
-          >
+          <Link href="/inventory" className="text-gray-300 hover:text-white transition-colors">
             Inventory
+          </Link>
+          {/* Add this new link */}
+          <Link href="/orders" className="text-gray-300 hover:text-white transition-colors">
+            Orders
           </Link>
         </div>
       </nav>
