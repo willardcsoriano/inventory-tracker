@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-// Corrected import path
 import { createSupabaseServerClient } from '@/utils/supabase/server'
 
 // --- GET: Fetch all items for the logged-in user ---
@@ -20,17 +19,18 @@ export async function GET() {
   return NextResponse.json(data)
 }
 
-// --- POST: Create a new item ---
+// --- POST: Create a new item with limited initial data ---
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient()
-  const { name, quantity } = await req.json()
+  // Only expect the initial fields for a new item
+  const { name, part_number, supplier, description, quantity } = await req.json()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new NextResponse('Unauthorized', { status: 401 })
 
   const { data, error } = await supabase
     .from('inventory')
-    .insert([{ name, quantity, user_id: user.id }])
+    .insert([{ name, part_number, supplier, description, quantity: quantity || 0, user_id: user.id }])
     .select()
 
   if (error) return new NextResponse(error.message, { status: 500 })
@@ -38,17 +38,18 @@ export async function POST(req: Request) {
   return NextResponse.json(data)
 }
 
-// --- PATCH: Update an existing item ---
+// --- PATCH: Update an existing item with all fields ---
 export async function PATCH(req: Request) {
   const supabase = await createSupabaseServerClient()
-  const { id, name, quantity } = await req.json()
+  // Expect all fields for an update
+  const { id, name, part_number, supplier, description, quantity, category, location, reorder_level } = await req.json()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new NextResponse('Unauthorized', { status: 401 })
 
   const { data, error } = await supabase
     .from('inventory')
-    .update({ name, quantity })
+    .update({ name, part_number, supplier, description, quantity, category, location, reorder_level })
     .eq('id', id)
     .eq('user_id', user.id)
     .select()
