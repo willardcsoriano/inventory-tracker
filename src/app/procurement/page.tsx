@@ -9,7 +9,7 @@ interface SupplyOrderItem {
   item_name: string
   part_number: string | null
   quantity_ordered: number
-  quantity_received: number
+  quantity_received: number // Keep for data model consistency, even if not used in UI
   cost_per_unit: number
 }
 
@@ -33,7 +33,6 @@ const SupplyOrderForm: FC<{
   initialData?: SupplyOrder | null
   loading?: boolean
 }> = ({ onSubmit, onCancel, initialData, loading }) => {
-  // Main Order State
   const [supplierName, setSupplierName] = useState('')
   const [orderNumber, setOrderNumber] = useState('')
   const [status, setStatus] = useState<SupplyOrder['status']>('Draft')
@@ -41,8 +40,6 @@ const SupplyOrderForm: FC<{
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('')
   const [trackingNumber, setTrackingNumber] = useState('')
   const [notes, setNotes] = useState('')
-  
-  // Line Items State
   const [lineItems, setLineItems] = useState<Partial<Omit<SupplyOrderItem, 'id' | 'quantity_received'>>[]>([])
 
   useEffect(() => {
@@ -108,7 +105,6 @@ const SupplyOrderForm: FC<{
           <div><label className="block mb-1 font-medium text-sm">Tracking Number</label><input type="text" value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} className="w-full border rounded px-3 py-2" /></div>
         </div>
         <div><label className="block mb-1 font-medium text-sm">Notes</label><textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="w-full border rounded px-3 py-2"></textarea></div>
-
         <div className="space-y-2 pt-4 border-t">
           <h3 className="font-semibold">Line Items</h3>
           <div className="grid grid-cols-12 gap-3 px-1 text-xs font-bold text-gray-500 uppercase"><div className="col-span-4">Item Name</div><div className="col-span-3">Part #</div><div className="col-span-2 text-center">Quantity</div><div className="col-span-2 text-center">Cost/Unit</div><div className="col-span-1"></div></div>
@@ -123,7 +119,6 @@ const SupplyOrderForm: FC<{
           ))}
           <button type="button" onClick={addLineItem} className="text-sm bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300">+ Add Line</button>
         </div>
-
         <div className="flex justify-between items-center pt-4 border-t"><div className="text-lg font-bold">Total Est. Cost: ₱{totalCost.toFixed(2)}</div><div className="flex space-x-2"><button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">{loading ? 'Saving...' : 'Save Order'}</button><button type="button" onClick={onCancel} className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">Cancel</button></div></div>
       </form>
     </div>
@@ -136,7 +131,6 @@ const SupplyOrderCard: FC<{ order: SupplyOrder; onView: (order: SupplyOrder) => 
   return <div className="p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:shadow-md" onClick={() => onView(order)}><div className="flex justify-between items-start"><div><div className="font-bold text-lg">{order.supplier_name}</div><div className="text-sm text-gray-600">Order #{order.order_number}</div><div className="text-xs text-gray-400">Date: {new Date(order.order_date).toLocaleDateString()}</div></div><div className="text-right"><div className="font-bold text-xl">₱{totalCost.toFixed(2)}</div><span className={`mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-full ${statusColors[order.status]}`}>{order.status}</span></div></div></div>
 }
 
-
 // --- MAIN PAGE COMPONENT ---
 export default function ProcurementPage() {
   const session = useSession()
@@ -147,7 +141,7 @@ export default function ProcurementPage() {
   const [isFormVisible, setIsFormVisible] = useState(false)
   const [editingOrder, setEditingOrder] = useState<SupplyOrder | null>(null)
   const [viewingOrder, setViewingOrder] = useState<SupplyOrder | null>(null)
-  const [receivedQuantities, setReceivedQuantities] = useState<Record<number, number | string>>({})
+  const [newStatus, setNewStatus] = useState<SupplyOrder['status'] | ''>('');
 
   const fetchData = async () => {
     setLoading(true)
@@ -158,13 +152,72 @@ export default function ProcurementPage() {
 
   useEffect(() => { if (user) fetchData() }, [user])
 
-  const handleSubmitForm = async (formData: any) => { alert("Backend for creating Supply Orders needs to be implemented with the new structure."); }
-  const handleLogReception = async () => { alert("Backend for receiving items needs to be implemented."); }
-  const handleReceiveQtyChange = (itemId: number, qty: string) => { setReceivedQuantities(prev => ({...prev, [itemId]: qty})) }
+  const handleSubmitForm = async (formData: any) => {
+    setLoading(true);
+    const endpoint = '/api/procurement';
+    const method = editingOrder ? 'PATCH' : 'POST';
+    const body = editingOrder ? { id: editingOrder.id, ...formData } : formData;
+
+    const res = await fetch(endpoint, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      alert('Failed to save the supply order.');
+    } else {
+      setIsFormVisible(false);
+      setEditingOrder(null);
+      await fetchData();
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteOrder = async (orderId: number) => {
+    if (!confirm('Are you sure you want to permanently delete this supply order?')) return;
+
+    setLoading(true);
+    const res = await fetch(`/api/procurement?id=${orderId}`, { method: 'DELETE' });
+    if (res.ok) {
+        alert('Supply order deleted successfully.');
+        setViewingOrder(null);
+        await fetchData();
+    } else {
+        alert('Failed to delete supply order.');
+    }
+    setLoading(false);
+  }
+
+  const handleUpdateStatus = async () => {
+    if (!viewingOrder || !newStatus) {
+        alert("Please select a new status.");
+        return;
+    }
+    setLoading(true);
+    const res = await fetch('/api/procurement', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: viewingOrder.id, status: newStatus })
+    });
+    if (res.ok) {
+        alert('Status updated successfully!');
+        const updatedOrderData = await res.json();
+        const updatedOrder = updatedOrderData[0]; 
+        setViewingOrder(prev => prev ? {...prev, status: updatedOrder.status} : null);
+        await fetchData();
+    } else {
+        alert('Failed to update status.');
+    }
+    setLoading(false);
+  }
 
   const handleStartCreate = () => { setEditingOrder(null); setIsFormVisible(true); }
   const handleCancelForm = () => { setIsFormVisible(false); setEditingOrder(null); }
-  const handleViewDetails = (order: SupplyOrder) => { setViewingOrder(order); setReceivedQuantities({}); }
+  const handleViewDetails = (order: SupplyOrder) => { 
+    setViewingOrder(order); 
+    setNewStatus(order.status);
+  }
   const handleCloseDetails = () => setViewingOrder(null)
   
   if (!user) return null
@@ -175,28 +228,47 @@ export default function ProcurementPage() {
         <button onClick={handleCloseDetails} className="mb-4 text-blue-600 hover:underline">&larr; Back to All Supply Orders</button>
         <div className="p-6 bg-white rounded-lg shadow-lg">
           <div className="mb-4 pb-4 border-b">
-            <h1 className="text-2xl font-bold">Receive Items for Order #{viewingOrder.order_number}</h1>
+            <h1 className="text-2xl font-bold">Order #{viewingOrder.order_number}</h1>
             <p className="text-gray-600">From: {viewingOrder.supplier_name}</p>
           </div>
-          <h2 className="font-semibold mb-2">Log Received Items</h2>
+
+          <div className="p-4 bg-gray-50 rounded-md border mb-6">
+              <h3 className="font-semibold mb-3">Manage Supply Order</h3>
+              <div className="flex flex-col md:flex-row md:items-end gap-4">
+                  <div className="flex-grow">
+                      <label htmlFor="status-select" className="block text-sm font-medium mb-1">Change Status</label>
+                      <select id="status-select" value={newStatus} onChange={e => setNewStatus(e.target.value as SupplyOrder['status'])} className="w-full border rounded px-3 py-2 bg-white">
+                          <option>Draft</option><option>Ordered</option><option>Partially Received</option><option>Received</option><option>Cancelled</option>
+                      </select>
+                  </div>
+                  <button onClick={handleUpdateStatus} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 h-10">Save Status</button>
+                  <div className="border-l h-10 mx-2"></div>
+                  <button onClick={() => handleDeleteOrder(viewingOrder.id)} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 h-10">Delete Order</button>
+              </div>
+          </div>
+
+          <h2 className="font-semibold mb-2">Items on Order</h2>
           <table className="w-full text-left">
-            <thead><tr className="border-b"><th className="p-2">Item</th><th className="p-2">Part #</th><th className="p-2 text-center">Ordered</th><th className="p-2 text-center">Received</th><th className="p-2">Receive Now</th></tr></thead>
+            <thead><tr className="border-b"><th className="p-2">Item</th><th className="p-2 text-center">Quantity Ordered</th><th className="p-2 text-right">Cost/Unit</th><th className="p-2 text-right">Subtotal</th></tr></thead>
             <tbody>
-              {viewingOrder.supply_order_items.map(item => {
-                const remaining = item.quantity_ordered - item.quantity_received;
-                return (
-                  <tr key={item.id} className="border-b">
-                    <td className="p-2">{item.item_name}</td>
-                    <td className="p-2 text-gray-500">{item.part_number}</td>
-                    <td className="p-2 text-center">{item.quantity_ordered}</td>
-                    <td className="p-2 text-center font-medium">{item.quantity_received}</td>
-                    <td className="p-2">{remaining > 0 ? (<input type="number" value={receivedQuantities[item.id] || ''} onChange={e => handleReceiveQtyChange(item.id, e.target.value)} min={0} max={remaining} placeholder={`Max: ${remaining}`} className="w-24 border rounded px-2 py-1 text-center"/>) : (<span className="text-green-600 font-semibold">Received</span>)}</td>
-                  </tr>
-                )
-              })}
+              {viewingOrder.supply_order_items.map(item => (
+                <tr key={item.id} className="border-b">
+                  <td className="p-2">{item.item_name} {item.part_number && <span className="text-gray-500 text-xs">({item.part_number})</span>}</td>
+                  <td className="p-2 text-center">{item.quantity_ordered}</td>
+                  <td className="p-2 text-right">₱{item.cost_per_unit.toFixed(2)}</td>
+                  <td className="p-2 text-right">₱{(item.quantity_ordered * item.cost_per_unit).toFixed(2)}</td>
+                </tr>
+              ))}
             </tbody>
+            <tfoot>
+              <tr className="font-bold">
+                <td colSpan={3} className="p-2 text-right">Total Estimated Cost</td>
+                <td className="p-2 text-right">
+                  ₱{viewingOrder.supply_order_items.reduce((acc, item) => acc + item.quantity_ordered * item.cost_per_unit, 0).toFixed(2)}
+                </td>
+              </tr>
+            </tfoot>
           </table>
-           <div className="mt-6 text-right"><button onClick={handleLogReception} className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Log Received Items</button></div>
         </div>
       </main>
     )
