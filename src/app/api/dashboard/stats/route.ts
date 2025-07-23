@@ -1,5 +1,3 @@
-// C:\Users\Willard\inventory-tracker\src\app\api\dashboard\stats\route.ts
-
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
@@ -20,22 +18,24 @@ export async function GET() {
   )
 
   try {
-    // Fetch count from multiple tables in parallel for efficiency
+    // Fetch count from all tables in parallel
     const [
       { count: inventoryCount },
       { count: ordersCount },
-      { count: procurementCount }, // Changed from suppliesCount
+      { count: procurementCount },
+      { count: paymentsCount }, // Added payments count
     ] = await Promise.all([
       supabase.from('inventory').select('*', { count: 'exact', head: true }),
       supabase.from('orders').select('*', { count: 'exact', head: true }),
-      supabase.from('supplies').select('*', { count: 'exact', head: true }), // Fetch from 'supplies' table
+      supabase.from('supplies').select('*', { count: 'exact', head: true }),
+      supabase.from('payments').select('*', { count: 'exact', head: true }), // Fetch from 'payments' table
     ])
 
     const stats = {
       inventoryCount: inventoryCount ?? 0,
       ordersCount: ordersCount ?? 0,
-      procurementCount: procurementCount ?? 0, // Changed from suppliesCount
-      paymentsCount: 0, // Placeholder
+      procurementCount: procurementCount ?? 0,
+      paymentsCount: paymentsCount ?? 0, // Use the real count
     }
 
     return NextResponse.json(stats)

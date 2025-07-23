@@ -17,9 +17,15 @@ export default function Header() {
           <Link href="/inventory" className="text-gray-300 hover:text-white transition-colors">
             Inventory
           </Link>
-          {/* Add this new link */}
           <Link href="/orders" className="text-gray-300 hover:text-white transition-colors">
             Orders
+          </Link>
+          {/* Added new links */}
+          <Link href="/procurement" className="text-gray-300 hover:text-white transition-colors">
+            Procurement
+          </Link>
+          <Link href="/payments" className="text-gray-300 hover:text-white transition-colors">
+            Payments
           </Link>
         </div>
       </nav>
