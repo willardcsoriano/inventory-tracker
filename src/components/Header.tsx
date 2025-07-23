@@ -31,8 +31,8 @@ export default async function Header() {
             <Link href="/procurement" className="text-gray-300 hover:text-white transition-colors">
               Procurement
             </Link>
-            <Link href="/payments" className="text-gray-300 hover:text-white transition-colors">
-              Payments
+            <Link href="/collections" className="text-gray-300 hover:text-white transition-colors">
+              Collections
             </Link>
           </div>
         )}
