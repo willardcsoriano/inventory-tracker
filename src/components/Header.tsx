@@ -13,7 +13,7 @@ export default async function Header() {
           href="/"
           className="text-2xl font-bold tracking-tight hover:text-blue-400 transition-colors"
         >
-          📦 InventoryApp
+          📦 BusinessCentral
         </Link>
 
         {/* Conditionally render navigation links only if logged in */}
