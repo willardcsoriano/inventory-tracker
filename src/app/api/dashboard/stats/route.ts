@@ -1,9 +1,10 @@
+// C:\Users\Willard\inventory-tracker\src\app\api\dashboard\stats\route.ts
+
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  // Applied the 'await' fix to satisfy the type-checker
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
@@ -19,17 +20,22 @@ export async function GET() {
   )
 
   try {
-    const [{ count: inventoryCount }, { count: ordersCount }] =
-      await Promise.all([
-        supabase.from('inventory').select('*', { count: 'exact', head: true }),
-        supabase.from('orders').select('*', { count: 'exact', head: true }),
-      ])
+    // Fetch count from multiple tables in parallel for efficiency
+    const [
+      { count: inventoryCount },
+      { count: ordersCount },
+      { count: procurementCount }, // Changed from suppliesCount
+    ] = await Promise.all([
+      supabase.from('inventory').select('*', { count: 'exact', head: true }),
+      supabase.from('orders').select('*', { count: 'exact', head: true }),
+      supabase.from('supplies').select('*', { count: 'exact', head: true }), // Fetch from 'supplies' table
+    ])
 
     const stats = {
       inventoryCount: inventoryCount ?? 0,
       ordersCount: ordersCount ?? 0,
-      suppliesCount: 0,
-      paymentsCount: 0,
+      procurementCount: procurementCount ?? 0, // Changed from suppliesCount
+      paymentsCount: 0, // Placeholder
     }
 
     return NextResponse.json(stats)

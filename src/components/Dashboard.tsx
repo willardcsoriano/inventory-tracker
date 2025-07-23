@@ -1,4 +1,3 @@
-// src/components/Dashboard.tsx
 'use client'
 
 import { useEffect, useState, FC } from 'react'
@@ -7,7 +6,7 @@ import Link from 'next/link'
 interface Stats {
   inventoryCount: number
   ordersCount: number
-  suppliesCount: number
+  procurementCount: number // Changed from suppliesCount
   paymentsCount: number
 }
 
@@ -55,7 +54,8 @@ export default function Dashboard() {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       <StatCard href="/inventory" title="Inventory" value={stats.inventoryCount} />
       <StatCard href="/orders" title="Orders" value={stats.ordersCount} />
-      <StatCard href="/supplies" title="Supplies" value={stats.suppliesCount} />
+      {/* Updated link, title, and value */}
+      <StatCard href="/procurement" title="Procurement" value={stats.procurementCount} />
       <StatCard href="/payments" title="Payments" value={stats.paymentsCount} />
     </div>
   )
