@@ -1,12 +1,12 @@
 // src/app/page.tsx
-'use client'
 
-import { useSession } from '@supabase/auth-helpers-react'
-import AuthForm  from '@/components/AuthForm'
+import { createSupabaseServerClient } from '@/utils/supabase/server' // Import server client
+import AuthForm from '@/components/AuthForm'
 import Dashboard from '@/components/Dashboard'
 
-export default function HomePage() {
-  const session = useSession()
+export default async function HomePage() { // Make it async
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser() // Get user server-side
 
-  return session ? <Dashboard /> : <AuthForm />
+  return user ? <Dashboard /> : <AuthForm />
 }
