@@ -130,7 +130,6 @@ const ItemCard: FC<{
 
   return (
     <div className={`p-4 bg-white rounded-lg shadow-sm border-l-4 ${isLowStock ? 'border-red-500' : 'border-gray-200'}`}>
-      {/* ... Card content remains the same ... */}
        <div className="flex justify-between items-start">
         <div>
           <div className="font-bold text-lg">{item.name}</div>
@@ -150,7 +149,7 @@ const ItemCard: FC<{
       <div className="mt-4 pt-4 border-t text-sm text-gray-600 space-y-1">
         {item.category && <div><strong>Category:</strong> {item.category}</div>}
         {item.location && <div><strong>Location:</strong> {item.location}</div>}
-        {item.description && <p className="italic">"{item.description}"</p>}
+        {item.description && <p className="italic">&quot;{item.description}&quot;</p>} {/* ✅ Fixed */}
       </div>
       <div className="flex justify-between items-center mt-4 pt-2 border-t">
         <div className="text-xs text-gray-400">
@@ -251,7 +250,6 @@ export default function InventoryPage() {
 
   return (
     <main className="max-w-5xl mx-auto p-4 md:p-8">
-       {/* ... main layout remains the same ... */}
        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold">Inventory</h1>
         <div className="w-full md:w-auto flex items-center gap-4">
@@ -287,7 +285,7 @@ export default function InventoryPage() {
         {!loading && items.length === 0 && (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <h3 className="text-xl font-semibold">Your inventory is empty</h3>
-            <p className="text-gray-500 mt-2">Click "+ Add New Item" to get started.</p>
+            <p className="text-gray-500 mt-2">Click &quot;+ Add New Item&quot; to get started.</p> {/* ✅ Fixed */}
           </div>
         )}
         {!loading && visibleItems.length === 0 && items.length > 0 && (

@@ -9,7 +9,7 @@ interface SupplyOrderItem {
   item_name: string
   part_number: string | null
   quantity_ordered: number
-  quantity_received: number // Keep for data model consistency, even if not used in UI
+  quantity_received: number
   cost_per_unit: number
 }
 
@@ -25,10 +25,23 @@ interface SupplyOrder {
   supply_order_items: SupplyOrderItem[]
 }
 
+// ✅ Added this interface to fix 'any' type errors
+interface SupplyOrderFormData {
+  supplier_name: string;
+  order_number: string;
+  status: SupplyOrder['status'];
+  order_date: string;
+  expected_delivery_date: string | null;
+  tracking_number: string | null;
+  notes: string | null;
+  items: Partial<Omit<SupplyOrderItem, 'id' | 'quantity_received'>>[];
+}
+
+
 // --- CHILD COMPONENTS ---
 
 const SupplyOrderForm: FC<{
-  onSubmit: (formData: any) => void
+  onSubmit: (formData: SupplyOrderFormData) => void // ✅ Fixed
   onCancel: () => void
   initialData?: SupplyOrder | null
   loading?: boolean
@@ -66,7 +79,7 @@ const SupplyOrderForm: FC<{
     }
   }, [initialData])
 
-  const handleItemChange = (index: number, field: keyof typeof lineItems[0], value: any) => {
+  const handleItemChange = (index: number, field: keyof typeof lineItems[0], value: string | number) => { // ✅ Fixed
     const updatedItems = [...lineItems]
     updatedItems[index] = { ...updatedItems[index], [field]: value }
     setLineItems(updatedItems)
@@ -152,7 +165,7 @@ export default function ProcurementPage() {
 
   useEffect(() => { if (user) fetchData() }, [user])
 
-  const handleSubmitForm = async (formData: any) => {
+  const handleSubmitForm = async (formData: SupplyOrderFormData) => { // ✅ Fixed
     setLoading(true);
     const endpoint = '/api/procurement';
     const method = editingOrder ? 'PATCH' : 'POST';
@@ -283,7 +296,7 @@ export default function ProcurementPage() {
       {isFormVisible && (<div className="mb-8"><SupplyOrderForm onSubmit={handleSubmitForm} onCancel={handleCancelForm} initialData={editingOrder} loading={loading} /></div>)}
       <div className="space-y-4">
         {loading && supplyOrders.length === 0 && <p>Loading supply orders...</p>}
-        {!loading && supplyOrders.length === 0 && (<div className="text-center py-12 bg-gray-50 rounded-lg"><h3 className="text-xl font-semibold">No supply orders found</h3><p className="text-gray-500 mt-2">Click "+ Create Supply Order" to get started.</p></div>)}
+        {!loading && supplyOrders.length === 0 && (<div className="text-center py-12 bg-gray-50 rounded-lg"><h3 className="text-xl font-semibold">No supply orders found</h3><p className="text-gray-500 mt-2">Click &quot;+ Create Supply Order&quot; to get started.</p></div>)} {/* ✅ Fixed */}
         {supplyOrders.map((order) => (<SupplyOrderCard key={order.id} order={order} onView={handleViewDetails} />))}
       </div>
     </main>

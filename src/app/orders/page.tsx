@@ -22,10 +22,20 @@ interface PurchaseOrder {
   order_items: OrderItem[]
 }
 
+// ✅ Added this interface to fix 'any' type errors
+interface PurchaseOrderFormData {
+  customer_name: string
+  po_number: string
+  status: PurchaseOrder['status']
+  order_date: string
+  po_file: File | null
+  items: Omit<OrderItem, 'id'>[]
+}
+
 // --- CHILD COMPONENTS ---
 
 const PurchaseOrderForm: FC<{
-  onSubmit: (formData: any) => void
+  onSubmit: (formData: PurchaseOrderFormData) => void // ✅ Fixed
   onCancel: () => void
   initialData?: PurchaseOrder | null
   loading?: boolean
@@ -38,18 +48,20 @@ const PurchaseOrderForm: FC<{
   const [lineItems, setLineItems] = useState<Omit<OrderItem, 'id'>[]>([])
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]
     if (initialData) {
       setCustomerName(initialData.customer_name)
       setPoNumber(initialData.po_number)
       setStatus(initialData.status)
       setOrderDate(new Date(initialData.order_date).toISOString().split('T')[0])
-      setLineItems(initialData.order_items.map(item => ({
-        item_name: item.item_name,
-        part_number: item.part_number || '',
-        quantity: item.quantity,
-        price_per_unit: item.price_per_unit,
-      })))
+      setLineItems(
+        initialData.order_items.map((item) => ({
+          item_name: item.item_name,
+          part_number: item.part_number || '',
+          quantity: item.quantity,
+          price_per_unit: item.price_per_unit,
+        })),
+      )
     } else {
       setCustomerName('')
       setPoNumber('')
@@ -59,7 +71,7 @@ const PurchaseOrderForm: FC<{
     }
   }, [initialData])
 
-  const handleItemChange = (index: number, field: keyof Omit<OrderItem, 'id'>, value: any) => {
+  const handleItemChange = (index: number, field: keyof Omit<OrderItem, 'id'>, value: string | number) => { // ✅ Fixed
     const updatedItems = [...lineItems]
     updatedItems[index] = { ...updatedItems[index], [field]: value }
     setLineItems(updatedItems)
@@ -70,18 +82,18 @@ const PurchaseOrderForm: FC<{
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    const validItems = lineItems.filter(item => item.item_name.trim() !== '' && item.quantity > 0)
+    const validItems = lineItems.filter((item) => item.item_name.trim() !== '' && item.quantity > 0)
     if (validItems.length === 0) {
       alert('Please add at least one valid line item.')
       return
     }
-    onSubmit({ 
-      customer_name: customerName, 
-      po_number: poNumber, 
-      status, 
+    onSubmit({
+      customer_name: customerName,
+      po_number: poNumber,
+      status,
       order_date: orderDate,
       po_file: poFile,
-      items: validItems 
+      items: validItems,
     })
   }
 
@@ -126,7 +138,7 @@ const PurchaseOrderForm: FC<{
 }
 
 const PurchaseOrderCard: FC<{ order: PurchaseOrder; onView: (order: PurchaseOrder) => void }> = ({ order, onView }) => {
-  const totalCost = order.order_items.reduce((acc, item) => acc + item.quantity * item.price_per_unit, 0);
+  const totalCost = order.order_items.reduce((acc, item) => acc + item.quantity * item.price_per_unit, 0)
   const statusColors = { Pending: 'bg-gray-200 text-gray-800', Processing: 'bg-yellow-200 text-yellow-800', 'Partially Fulfilled': 'bg-blue-200 text-blue-800', Fulfilled: 'bg-green-200 text-green-800', Cancelled: 'bg-red-200 text-red-800' }
   return <div className="p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:shadow-md" onClick={() => onView(order)}><div className="flex justify-between items-start"><div><div className="font-bold text-lg">PO #{order.po_number}</div><div className="text-sm text-gray-600">{order.customer_name}</div><div className="text-xs text-gray-400">Date: {new Date(order.order_date).toLocaleDateString()}</div></div><div className="text-right"><div className="font-bold text-xl">₱{totalCost.toFixed(2)}</div><span className={`mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-full ${statusColors[order.status]}`}>{order.status}</span></div></div></div>
 }
@@ -142,7 +154,7 @@ export default function OrdersPage() {
   const [isFormVisible, setIsFormVisible] = useState(false)
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null)
   const [viewingOrder, setViewingOrder] = useState<PurchaseOrder | null>(null)
-  const [newStatus, setNewStatus] = useState<PurchaseOrder['status'] | ''>('');
+  const [newStatus, setNewStatus] = useState<PurchaseOrder['status'] | ''>('')
 
   const fetchData = async () => {
     setLoading(true)
@@ -153,24 +165,24 @@ export default function OrdersPage() {
 
   useEffect(() => { if (user) fetchData() }, [user])
 
-  const handleSubmitForm = async (formData: any) => {
-    if (!user) return;
-    setLoading(true);
-    let documentUrl = editingOrder?.po_document_url || null;
+  const handleSubmitForm = async (formData: PurchaseOrderFormData) => { // ✅ Fixed
+    if (!user) return
+    setLoading(true)
+    let documentUrl = editingOrder?.po_document_url || null
     if (formData.po_file) {
-      const file = formData.po_file as File;
-      const filePath = `${user.id}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from('po-documents').upload(filePath, file);
+      const file = formData.po_file as File
+      const filePath = `${user.id}/${Date.now()}-${file.name}`
+      const { error: uploadError } = await supabase.storage.from('po-documents').upload(filePath, file)
       if (uploadError) {
-        alert('Error uploading file: ' + uploadError.message);
-        setLoading(false);
-        return;
+        alert('Error uploading file: ' + uploadError.message)
+        setLoading(false)
+        return
       }
-      const { data } = supabase.storage.from('po-documents').getPublicUrl(filePath);
-      documentUrl = data.publicUrl;
+      const { data } = supabase.storage.from('po-documents').getPublicUrl(filePath)
+      documentUrl = data.publicUrl
     }
-    const finalPayload = { ...formData, po_document_url: documentUrl, }
-    delete finalPayload.po_file;
+    const finalPayload = { ...formData, po_document_url: documentUrl }
+    delete (finalPayload as Partial<typeof finalPayload>).po_file
     const endpoint = '/api/orders'
     const method = editingOrder ? 'PATCH' : 'POST'
     const body = editingOrder ? { id: editingOrder.id, ...finalPayload } : finalPayload
@@ -189,50 +201,50 @@ export default function OrdersPage() {
   }
 
   const handleDeleteOrder = async (orderId: number) => {
-    if (!confirm('Are you sure you want to permanently delete this order?')) return;
-    setLoading(true);
-    const res = await fetch(`/api/orders?id=${orderId}`, { method: 'DELETE' });
+    if (!confirm('Are you sure you want to permanently delete this order?')) return
+    setLoading(true)
+    const res = await fetch(`/api/orders?id=${orderId}`, { method: 'DELETE' })
     if (res.ok) {
-        alert('Order deleted successfully.');
-        setViewingOrder(null);
-        await fetchData();
+        alert('Order deleted successfully.')
+        setViewingOrder(null)
+        await fetchData()
     } else {
-        alert('Failed to delete order.');
+        alert('Failed to delete order.')
     }
-    setLoading(false);
+    setLoading(false)
   }
 
   const handleUpdateStatus = async () => {
     if (!viewingOrder || !newStatus) {
-        alert("Please select a new status.");
-        return;
+        alert("Please select a new status.")
+        return
     }
-    setLoading(true);
+    setLoading(true)
     const res = await fetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: viewingOrder.id, status: newStatus })
     });
     if (res.ok) {
-        alert('Status updated successfully!');
-        const updatedOrderData = await res.json();
-        const updatedOrder = updatedOrderData[0]; 
-        setViewingOrder(prev => prev ? {...prev, status: updatedOrder.status} : null);
-        await fetchData();
+        alert('Status updated successfully!')
+        const updatedOrderData = await res.json()
+        const updatedOrder = updatedOrderData[0]
+        setViewingOrder(prev => prev ? {...prev, status: updatedOrder.status} : null)
+        await fetchData()
     } else {
-        alert('Failed to update status.');
+        alert('Failed to update status.')
     }
-    setLoading(false);
+    setLoading(false)
   }
 
-  const handleStartCreate = () => { setEditingOrder(null); setIsFormVisible(true); }
-  const handleCancelForm = () => { setIsFormVisible(false); setEditingOrder(null); }
+  const handleStartCreate = () => { setEditingOrder(null); setIsFormVisible(true) }
+  const handleCancelForm = () => { setIsFormVisible(false); setEditingOrder(null) }
   const handleViewDetails = (order: PurchaseOrder) => { 
-    setViewingOrder(order); 
-    setNewStatus(order.status);
+    setViewingOrder(order) 
+    setNewStatus(order.status)
   }
   const handleCloseDetails = () => setViewingOrder(null)
-  
+
   if (!user) return null
 
   if (viewingOrder) {
@@ -275,7 +287,7 @@ export default function OrdersPage() {
                 </tr>
               ))}
             </tbody>
-             <tfoot>
+              <tfoot>
               <tr className="font-bold">
                 <td colSpan={3} className="p-2 text-right">Total</td>
                 <td className="p-2 text-right">
@@ -295,7 +307,7 @@ export default function OrdersPage() {
       {isFormVisible && (<div className="mb-8"><PurchaseOrderForm onSubmit={handleSubmitForm} onCancel={handleCancelForm} initialData={editingOrder} loading={loading} /></div>)}
       <div className="space-y-4">
         {loading && orders.length === 0 && <p>Loading orders...</p>}
-        {!loading && orders.length === 0 && (<div className="text-center py-12 bg-gray-50 rounded-lg"><h3 className="text-xl font-semibold">No purchase orders logged</h3><p className="text-gray-500 mt-2">Click "+ Log New PO" to get started.</p></div>)}
+        {!loading && orders.length === 0 && (<div className="text-center py-12 bg-gray-50 rounded-lg"><h3 className="text-xl font-semibold">No purchase orders logged</h3><p className="text-gray-500 mt-2">Click &quot;+ Log New PO&quot; to get started.</p></div>)} {/* ✅ Fixed */}
         {orders.map((order) => (<PurchaseOrderCard key={order.id} order={order} onView={handleViewDetails} />))}
       </div>
     </main>
